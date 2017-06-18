@@ -15,6 +15,33 @@ func init() {
     http.HandleFunc("/png", handler)
 }
 
+type pt struct {
+	w    float64
+	d    float64
+	d_in float64
+}
+
+func computeD(r float64, R float64, D float64, phi_deg int, theta float64) float64 {
+	phi := float64(phi_deg) / 360.0 * 2*math.Pi
+	x_disp := (r*math.Sin(theta))
+	d := D - (math.Sqrt(R*R - x_disp*x_disp))
+	
+	if (phi_deg != 90) {
+		d += (r - r*math.Cos(theta)) / math.Tan(phi)
+	}
+	return d
+}
+
+func computeIntersection(r float64, t float64, R float64, D float64, phi_deg int) (pts []pt) {	
+	for w := float64(0.0); w < r*2*math.Pi; w += 0.05 {
+		theta := float64(w/r);
+		d_out := computeD(r, R, D, phi_deg, theta);
+		d_in := computeD(r - t, R, D, phi_deg, theta);
+		pts = append(pts, pt{w, d_out, d_in})
+	}
+	return pts
+}
+
 func handler(writer http.ResponseWriter, req *http.Request) {
 	if (req.ParseForm() != nil) {
 		fmt.Fprint(writer, "Error parsing request")
@@ -26,23 +53,24 @@ func handler(writer http.ResponseWriter, req *http.Request) {
 	gc.SetStrokeColor(color.RGBA{0x44, 0x44, 0x44, 0xff})
 	gc.SetLineWidth(2)
 
-	const kVertOffset float64 = 500.0
-	const kPi float64 = 3.14159
-
-	gc.MoveTo(0, kVertOffset)
 
 	R,_ := strconv.ParseFloat(req.FormValue("R"), 64)
 	r,_ := strconv.ParseFloat(req.FormValue("r"), 64)
 	phi_deg,_ := strconv.ParseFloat(req.FormValue("phi"), 64)
-	phi := phi_deg / 360.0 * 2*kPi
-	cosphi := math.Cos(phi)
+	thick,_ := strconv.ParseFloat(req.FormValue("t"), 64);
+	
+	D := math.Trunc(R + 4)
+	pts := computeIntersection(r, thick, R, D, int(phi_deg))
+	
+	gc.MoveTo(0, 0)
+	for _,p := range pts {
+		gc.LineTo(p.d * 100, p.w * 100)
+	}
+	gc.Stroke()
 
-	var w float64 = 0
-	for ; w < r*2*kPi; w += 0.1 {
-                x_disp := (r*math.Sin(w/r))
-		d := R - math.Sqrt(R*R - x_disp*x_disp) + (r - r*math.Cos(w/r))*cosphi
-		fmt.Println(w * 100, kVertOffset + d * 100)
-		gc.LineTo(w * 100, kVertOffset + d*100)
+	gc.MoveTo(0, 0)
+	for _,p := range pts {
+		gc.LineTo(p.d_in * 100, p.w * 100)
 	}
 	gc.Stroke()
 
