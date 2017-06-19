@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/llgcode/draw2d/draw2dimg"
+	"github.com/llgcode/draw2d"
 	"image"
 	"image/color"
 	"image/png"
@@ -33,7 +34,7 @@ func computeD(r float64, R float64, D float64, phi_deg int, theta float64) float
 }
 
 func computeIntersection(r float64, t float64, R float64, D float64, phi_deg int) (pts []pt) {	
-	for w := float64(0.0); w < r*2*math.Pi; w += 0.05 {
+	for w := float64(0.0); w < r*2*math.Pi; w += 0.025 {
 		theta := float64(w/r);
 		d_out := computeD(r, R, D, phi_deg, theta);
 		d_in := computeD(r - t, R, D, phi_deg, theta);
@@ -50,7 +51,7 @@ func handler(writer http.ResponseWriter, req *http.Request) {
 
 	dest := image.NewRGBA(image.Rect(0, 0, 1000, 1000))
 	gc := draw2dimg.NewGraphicContext(dest)
-	gc.SetStrokeColor(color.RGBA{0x44, 0x44, 0x44, 0xff})
+	gc.SetStrokeColor(color.Gray{0x00})
 	gc.SetLineWidth(2)
 
 
@@ -61,18 +62,39 @@ func handler(writer http.ResponseWriter, req *http.Request) {
 	
 	D := math.Trunc(R + 4)
 	pts := computeIntersection(r, thick, R, D, int(phi_deg))
-	
+
+	// outside profile:
 	gc.MoveTo(0, 0)
 	for _,p := range pts {
 		gc.LineTo(p.d * 100, p.w * 100)
 	}
 	gc.Stroke()
 
+	// inside profile:
+	gc.SetStrokeColor(color.Gray{0xaa})
 	gc.MoveTo(0, 0)
 	for _,p := range pts {
 		gc.LineTo(p.d_in * 100, p.w * 100)
 	}
 	gc.Stroke()
+
+	// quarter rotation lines:
+	gc.SetStrokeColor(color.Gray{0x00})
+	for i := float64(1.0); i <= 4; i++ {
+		theta := float64(math.Pi*i/2.0)
+		quarter_d := computeD(r, R, D, int(phi_deg), theta)
+		quarter_w := theta*r
+		gc.MoveTo(0, quarter_w * 100)
+		gc.LineTo(quarter_d * 100, quarter_w * 100)
+
+	}
+	gc.Stroke()
+	draw2d.SetFontFolder(".")
+	gc.SetFontData(draw2d.FontData{"go", draw2d.FontFamilyMono, draw2d.FontStyleBold})
+	gc.SetFontSize(12)
+	gc.SetFillColor(color.Gray{0x00})
+	gc.FillStringAt(fmt.Sprintf("Edge of pattern is %0.2fin from center of tube", D), 10, 30)
+	gc.Fill()
 
 	png.Encode(writer, dest)
 }
