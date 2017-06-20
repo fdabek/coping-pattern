@@ -1,0 +1,29 @@
+<form>
+Cut diameter:<input type="text" id="r" name="r"><br>
+Other diameter:<input type="text" id="R" name="R"><br>
+Angle:<input type="text" id="phi" name="phi"><br>
+Wall thickness:<input type="text" id="t" name="t"><br>
+</form>
+
+<img src="/png?R=1.5&r=1.125&t=0.03&phi=72" id="pattern">
+
+<button onclick='edit()'>Preview</button>
+
+<script>
+  function edit() {
+  url = "/png?"
+  R = document.getElementById('R').value;
+  url = url.concat("&R=").concat(R)
+  
+  r = document.getElementById('r').value;
+  url = url.concat("&r=").concat(r)
+  
+  phi = document.getElementById('phi').value;
+  url = url.concat("&phi=").concat(phi)
+
+  thick = document.getElementById('t').value;
+  url = url.concat("&t=").concat(thick)
+  
+  document.getElementById("pattern").src=url;
+}
+</script>

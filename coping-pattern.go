@@ -13,7 +13,8 @@ import (
 )
 
 func init() {
-    http.HandleFunc("/png", handler)
+	http.HandleFunc("/png", handler)
+	http.Handle("/", http.FileServer(http.Dir("./static")))
 }
 
 type pt struct {
@@ -25,7 +26,10 @@ type pt struct {
 func computeD(r float64, R float64, D float64, phi_deg int, theta float64) float64 {
 	phi := float64(phi_deg) / 360.0 * 2*math.Pi
 	x_disp := (r*math.Sin(theta))
-	d := D - (math.Sqrt(R*R - x_disp*x_disp))
+	d := D
+	if (x_disp < R) {
+		d -= (math.Sqrt(R*R - x_disp*x_disp))
+	}
 	
 	if (phi_deg != 90) {
 		d += (r - r*math.Cos(theta)) / math.Tan(phi)
@@ -53,7 +57,6 @@ func handler(writer http.ResponseWriter, req *http.Request) {
 	gc := draw2dimg.NewGraphicContext(dest)
 	gc.SetStrokeColor(color.Gray{0x00})
 	gc.SetLineWidth(2)
-
 
 	R,_ := strconv.ParseFloat(req.FormValue("R"), 64)
 	r,_ := strconv.ParseFloat(req.FormValue("r"), 64)
