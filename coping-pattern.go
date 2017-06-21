@@ -7,8 +7,10 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"io"
 	"math"
 	"net/http"
+	_ "net/http/pprof"
 	"strconv"
 )
 
@@ -27,11 +29,11 @@ func computeD(r float64, R float64, D float64, phi_deg int, theta float64) float
 	phi := float64(phi_deg) / 360.0 * 2*math.Pi
 	x_disp := (r*math.Sin(theta))
 	d := D
-	if (x_disp < R) {
+	if math.Abs(x_disp) < R {
 		d -= (math.Sqrt(R*R - x_disp*x_disp))
 	}
 	
-	if (phi_deg != 90) {
+	if phi_deg != 90 {
 		d += (r - r*math.Cos(theta)) / math.Tan(phi)
 	}
 	return d
@@ -47,24 +49,24 @@ func computeIntersection(r float64, t float64, R float64, D float64, phi_deg int
 	return pts
 }
 
-func handler(writer http.ResponseWriter, req *http.Request) {
-	if (req.ParseForm() != nil) {
-		fmt.Fprint(writer, "Error parsing request")
-		return
+func dumpText(writer http.ResponseWriter, pts []pt) {
+	for _, p := range pts {
+		io.WriteString(writer, fmt.Sprintf("%f %f\n", p.w, p.d));
 	}
+}
+
+func dumpPng(
+	writer http.ResponseWriter,
+	r float64,
+	R float64,
+	D float64,
+	phi_deg int,
+	pts []pt) {
 
 	dest := image.NewRGBA(image.Rect(0, 0, 1000, 1000))
 	gc := draw2dimg.NewGraphicContext(dest)
 	gc.SetStrokeColor(color.Gray{0x00})
 	gc.SetLineWidth(2)
-
-	R,_ := strconv.ParseFloat(req.FormValue("R"), 64)
-	r,_ := strconv.ParseFloat(req.FormValue("r"), 64)
-	phi_deg,_ := strconv.ParseFloat(req.FormValue("phi"), 64)
-	thick,_ := strconv.ParseFloat(req.FormValue("t"), 64);
-	
-	D := math.Trunc(R + 4)
-	pts := computeIntersection(r, thick, R, D, int(phi_deg))
 
 	// outside profile:
 	gc.MoveTo(0, 0)
@@ -81,6 +83,7 @@ func handler(writer http.ResponseWriter, req *http.Request) {
 	}
 	gc.Stroke()
 
+
 	// quarter rotation lines:
 	gc.SetStrokeColor(color.Gray{0x00})
 	for i := float64(1.0); i <= 4; i++ {
@@ -89,15 +92,43 @@ func handler(writer http.ResponseWriter, req *http.Request) {
 		quarter_w := theta*r
 		gc.MoveTo(0, quarter_w * 100)
 		gc.LineTo(quarter_d * 100, quarter_w * 100)
-
+		
 	}
 	gc.Stroke()
+
 	draw2d.SetFontFolder(".")
 	gc.SetFontData(draw2d.FontData{"go", draw2d.FontFamilyMono, draw2d.FontStyleBold})
 	gc.SetFontSize(12)
 	gc.SetFillColor(color.Gray{0x00})
-	gc.FillStringAt(fmt.Sprintf("Edge of pattern is %0.2fin from center of tube", D), 10, 30)
+	gc.FillStringAt(fmt.Sprintf("Edge of pattern is %0.2fin from center of tube", D),
+		10, 30)
 	gc.Fill()
-
+		
 	png.Encode(writer, dest)
+}
+
+func handler(writer http.ResponseWriter, req *http.Request) {
+	if (req.ParseForm() != nil) {
+		fmt.Fprint(writer, "Error parsing request")
+		return
+	}
+
+	R,_ := strconv.ParseFloat(req.FormValue("R"), 64)
+	r,_ := strconv.ParseFloat(req.FormValue("r"), 64)
+	phi_deg,_ := strconv.ParseFloat(req.FormValue("phi"), 64)
+	thick,_ := strconv.ParseFloat(req.FormValue("t"), 64);
+	format := req.FormValue("f");
+
+	R = R/2;
+	r = r/2;
+	
+	D := math.Trunc(R + 4)
+	pts := computeIntersection(r, thick, R, D, int(phi_deg))
+
+	if format == "text" {
+		dumpText(writer, pts)
+	} else if format == "png" {
+		dumpPng(writer, r, R, D, int(phi_deg), pts)
+	}
+
 }

@@ -5,13 +5,13 @@ Angle:<input type="text" id="phi" name="phi"><br>
 Wall thickness:<input type="text" id="t" name="t"><br>
 </form>
 
-<img src="/png?R=1.5&r=1.125&t=0.03&phi=72" id="pattern">
+<img src="/png?f=png&R=1.5&r=1.125&t=0.03&phi=72" id="pattern">
 
 <button onclick='edit()'>Preview</button>
 
 <script>
   function edit() {
-  url = "/png?"
+  url = "/png?format=png"
   R = document.getElementById('R').value;
   url = url.concat("&R=").concat(R)
   
