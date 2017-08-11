@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/llgcode/draw2d/draw2dimg"
 	"github.com/llgcode/draw2d"
+	"github.com/llgcode/draw2d/draw2dpdf"
 	"image"
 	"image/color"
 	"image/png"
@@ -55,23 +56,20 @@ func dumpText(writer http.ResponseWriter, pts []pt) {
 	}
 }
 
-func dumpPng(
-	writer http.ResponseWriter,
+func DrawPattern(gc draw2d.GraphicContext,
 	r float64,
 	R float64,
 	D float64,
 	phi_deg int,
-	pts []pt) {
-
-	dest := image.NewRGBA(image.Rect(0, 0, 1000, 1000))
-	gc := draw2dimg.NewGraphicContext(dest)
+	pts []pt,
+	scale float64) {
 	gc.SetStrokeColor(color.Gray{0x00})
-	gc.SetLineWidth(2)
+	gc.SetLineWidth(0.02 * scale)
 
 	// outside profile:
 	gc.MoveTo(0, 0)
 	for _,p := range pts {
-		gc.LineTo(p.d * 100, p.w * 100)
+		gc.LineTo(p.d * scale, p.w * scale)
 	}
 	gc.Stroke()
 
@@ -79,7 +77,7 @@ func dumpPng(
 	gc.SetStrokeColor(color.Gray{0xaa})
 	gc.MoveTo(0, 0)
 	for _,p := range pts {
-		gc.LineTo(p.d_in * 100, p.w * 100)
+		gc.LineTo(p.d_in * scale, p.w * scale)
 	}
 	gc.Stroke()
 
@@ -90,12 +88,27 @@ func dumpPng(
 		theta := float64(math.Pi*i/2.0)
 		quarter_d := computeD(r, R, D, int(phi_deg), theta)
 		quarter_w := theta*r
-		gc.MoveTo(0, quarter_w * 100)
-		gc.LineTo(quarter_d * 100, quarter_w * 100)
+		gc.MoveTo(0, quarter_w * scale)
+		gc.LineTo(quarter_d * scale, quarter_w * scale)
 		
 	}
 	gc.Stroke()
+}
 
+func dumpPng(
+	writer http.ResponseWriter,
+	r float64,
+	R float64,
+	D float64,
+	phi_deg int,
+	pts []pt) {
+
+	dest := image.NewRGBA(image.Rect(0, 0, 1000, 1000))
+	gc := draw2dimg.NewGraphicContext(dest)
+
+	DrawPattern(gc,r,R,D,phi_deg,pts, 100.0)
+
+	// text output does not appear to be portable across PNG/PDF
 	draw2d.SetFontFolder(".")
 	gc.SetFontData(draw2d.FontData{"go", draw2d.FontFamilyMono, draw2d.FontStyleBold})
 	gc.SetFontSize(12)
@@ -103,8 +116,29 @@ func dumpPng(
 	gc.FillStringAt(fmt.Sprintf("Edge of pattern is %0.2fin from center of tube", D),
 		10, 30)
 	gc.Fill()
-		
+
 	png.Encode(writer, dest)
+}
+
+func dumpPdf(
+	writer http.ResponseWriter,
+	r float64,
+	R float64,
+	D float64,
+	phi_deg int,
+	pts []pt) {
+	
+	dest := draw2dpdf.NewPdf("L", "in", "Letter")
+	gc := draw2dpdf.NewGraphicContext(dest)
+
+	dest.SetFont("Courier", "B", 12)
+	dest.Cell(0.5, 0.5, fmt.Sprintf("Edge of pattern is %0.2fin from center of tube", D))
+
+	DrawPattern(gc,r,R,D,phi_deg,pts,1.0)
+	e := dest.Output(writer)
+	if e != nil {
+		fmt.Fprint(writer, "Error: ", e);
+	}
 }
 
 func handler(writer http.ResponseWriter, req *http.Request) {
@@ -129,6 +163,8 @@ func handler(writer http.ResponseWriter, req *http.Request) {
 		dumpText(writer, pts)
 	} else if format == "png" {
 		dumpPng(writer, r, R, D, int(phi_deg), pts)
+	} else if format == "pdf" {
+		dumpPdf(writer, r, R, D, int(phi_deg), pts)
 	}
 
 }
