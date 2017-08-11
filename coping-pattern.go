@@ -160,10 +160,13 @@ func handler(writer http.ResponseWriter, req *http.Request) {
 	pts := computeIntersection(r, thick, R, D, int(phi_deg))
 
 	if format == "text" {
+		writer.Header().Set("Content-type", "text/plain")
 		dumpText(writer, pts)
 	} else if format == "png" {
+		writer.Header().Set("Content-type", "image/png")
 		dumpPng(writer, r, R, D, int(phi_deg), pts)
 	} else if format == "pdf" {
+		writer.Header().Set("Content-type", "application/pdf")
 		dumpPdf(writer, r, R, D, int(phi_deg), pts)
 	}
 
