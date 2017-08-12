@@ -1,17 +1,79 @@
-<form>
-Cut diameter:<input type="text" id="r" name="r"><br>
-Other diameter:<input type="text" id="R" name="R"><br>
-Angle:<input type="text" id="phi" name="phi"><br>
-Wall thickness:<input type="text" id="t" name="t"><br>
+<style>
+  input[type=text] {
+    width: 100%;
+    padding: 12px 20px;
+    margin: 8px 0;
+    box-sizing: border-box;
+    border: 2px solid lightblue;
+    border-radius: 4px;
+    font-family: "Courier", Monospace, Sans-serif;
+  }
+  
+  input[type=text]:focus {
+    background-color: lightblue;
+  }
+  
+  input[type=button] {
+    background-color: gray;
+    border: none;
+    color: white;
+    padding: 16px 32px;
+    text-decoration: none;
+    margin: 4px 2px;
+    cursor: pointer;
+  }
+  
+  input[type=button]:hover {
+   background-color: lightblue;
+  }
+
+  div {
+    border-radius: 5px;
+    background-color: #f2f2f2;
+    padding: 20px;
+  }
+  
+  .left {
+    margin: 10px;
+    width: 500px;
+    padding: 10px;
+  }
+  
+  p {
+    font-family: "Courier", Monospace, Sans-serif;
+  }
+</style>
+
+<body onload='edit()'>
+ 
+<div class="left">
+<form action="/png?f=pdf" id="form">
+  <p><label for="r">Cut tube diameter:</label><br>
+    <input type="text" id="r" name="r" value="1.125"></p>
+
+<p><label for="R">Other tube diameter:</label><br>
+  <input type="text" id="R" name="R" value="1.5"></p>
+
+<p><label for="phi">Angle:</label><br>
+  <input type="text" id="phi" name="phi" value="72"></p>
+
+<p><label for="t">Wall thickness:</label><br>
+  <input type="text" id="t" name="t" value="0.035"></p>
+
+<input type="hidden" id="f" name="f" value="pdf">
+
+<input type="button" value="Preview" onclick='edit()'>
+<input type="button" value="PDF" onclick='document.getElementById("form").submit();'>
 </form>
+</div>
 
-<img src="/png?f=png&R=1.5&r=1.125&t=0.03&phi=72" id="pattern">
+<img src="" id="pattern">
 
-<button onclick='edit()'>Preview</button>
 
 <script>
   function edit() {
   url = "/png?f=png"
+  
   R = document.getElementById('R').value;
   url = url.concat("&R=").concat(R)
   
@@ -27,3 +89,4 @@ Wall thickness:<input type="text" id="t" name="t"><br>
   document.getElementById("pattern").src=url;
 }
 </script>
+</body>
