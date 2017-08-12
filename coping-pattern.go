@@ -62,14 +62,18 @@ func DrawPattern(gc draw2d.GraphicContext,
 	D float64,
 	phi_deg int,
 	pts []pt,
-	scale float64) {
+	scale float64,
+	border float64) {
+	gc.Save()
+	gc.Translate(border * scale, border * scale)
+	gc.Scale(scale, scale);
 	gc.SetStrokeColor(color.Gray{0x00})
-	gc.SetLineWidth(0.02 * scale)
+	gc.SetLineWidth(0.02)
 
 	// outside profile:
 	gc.MoveTo(0, 0)
 	for _,p := range pts {
-		gc.LineTo(p.d * scale, p.w * scale)
+		gc.LineTo(p.d, p.w)
 	}
 	gc.Stroke()
 
@@ -77,7 +81,7 @@ func DrawPattern(gc draw2d.GraphicContext,
 	gc.SetStrokeColor(color.Gray{0xaa})
 	gc.MoveTo(0, 0)
 	for _,p := range pts {
-		gc.LineTo(p.d_in * scale, p.w * scale)
+		gc.LineTo(p.d_in, p.w)
 	}
 	gc.Stroke()
 
@@ -88,11 +92,17 @@ func DrawPattern(gc draw2d.GraphicContext,
 		theta := float64(math.Pi*i/2.0)
 		quarter_d := computeD(r, R, D, int(phi_deg), theta)
 		quarter_w := theta*r
-		gc.MoveTo(0, quarter_w * scale)
-		gc.LineTo(quarter_d * scale, quarter_w * scale)
+		gc.MoveTo(0, quarter_w)
+		gc.LineTo(quarter_d, quarter_w)
 		
 	}
+
+	// reference edge
+	gc.MoveTo(0,0)
+	gc.LineTo(0, math.Pi*2*r)
+	
 	gc.Stroke()
+	gc.Restore()
 }
 
 func dumpPng(
@@ -106,7 +116,7 @@ func dumpPng(
 	dest := image.NewRGBA(image.Rect(0, 0, 1000, 1000))
 	gc := draw2dimg.NewGraphicContext(dest)
 
-	DrawPattern(gc,r,R,D,phi_deg,pts, 100.0)
+	DrawPattern(gc, r, R, D, phi_deg, pts, 100.0, 0.1)
 
 	// text output does not appear to be portable across PNG/PDF
 	draw2d.SetFontFolder(".")
@@ -128,13 +138,13 @@ func dumpPdf(
 	phi_deg int,
 	pts []pt) {
 	
-	dest := draw2dpdf.NewPdf("L", "in", "Letter")
+	dest := draw2dpdf.NewPdf("P", "in", "Letter")
 	gc := draw2dpdf.NewGraphicContext(dest)
 
 	dest.SetFont("Courier", "B", 12)
 	dest.Cell(0.5, 0.5, fmt.Sprintf("Edge of pattern is %0.2fin from center of tube", D))
 
-	DrawPattern(gc,r,R,D,phi_deg,pts,1.0)
+	DrawPattern(gc,r,R,D,phi_deg,pts,1.0,1.0)
 	e := dest.Output(writer)
 	if e != nil {
 		fmt.Fprint(writer, "Error: ", e);
@@ -168,6 +178,9 @@ func handler(writer http.ResponseWriter, req *http.Request) {
 	} else if format == "pdf" {
 		writer.Header().Set("Content-type", "application/pdf")
 		dumpPdf(writer, r, R, D, int(phi_deg), pts)
+	} else {
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte("500 - Invalid output format"))
 	}
 
 }
