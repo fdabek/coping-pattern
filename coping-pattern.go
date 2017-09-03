@@ -70,37 +70,49 @@ func DrawPattern(gc draw2d.GraphicContext,
 	gc.SetStrokeColor(color.Gray{0x00})
 	gc.SetLineWidth(0.02)
 
-	// outside profile:
-	gc.MoveTo(0, 0)
-	for _,p := range pts {
-		gc.LineTo(p.d, p.w)
-	}
-	gc.Stroke()
-
 	// inside profile:
 	gc.SetStrokeColor(color.Gray{0xaa})
-	gc.MoveTo(0, 0)
+	gc.MoveTo(pts[0].d_in, pts[0].w)
 	for _,p := range pts {
 		gc.LineTo(p.d_in, p.w)
 	}
 	gc.Stroke()
 
+	// outside profile:
+	gc.SetStrokeColor(color.Gray{0x00})
+	gc.MoveTo(pts[0].d, pts[0].w)
+	for _,p := range pts {
+		gc.LineTo(p.d, p.w)
+	}
+	gc.Stroke()
+
 
 	// quarter rotation lines:
-	gc.SetStrokeColor(color.Gray{0x00})
-	for i := float64(1.0); i <= 4; i++ {
+	for i := float64(0.0); i <= 4; i++ {
 		theta := float64(math.Pi*i/2.0)
 		quarter_d := computeD(r, R, D, int(phi_deg), theta)
 		quarter_w := theta*r
 		gc.MoveTo(0, quarter_w)
 		gc.LineTo(quarter_d, quarter_w)
-		
 	}
 
-	// reference edge
+	// left reference edge
 	gc.MoveTo(0,0)
 	gc.LineTo(0, math.Pi*2*r)
+
 	
+	// and the alignment notches every inch
+	for i := float64(0.0); i <= pts[0].d_in; i++ {
+		// top:
+		gc.MoveTo(i, 0)
+		gc.LineTo(i, 0.125)
+
+		// bottom:
+		bottom_w := math.Pi*2 * r
+		gc.MoveTo(i, bottom_w)
+		gc.LineTo(i, bottom_w - 0.125)
+	}
+
 	gc.Stroke()
 	gc.Restore()
 }
