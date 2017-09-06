@@ -33,9 +33,12 @@ func computeD(r float64, R float64, D float64, phi_deg int, theta float64) float
 	if math.Abs(x_disp) < R {
 		d -= (math.Sqrt(R*R - x_disp*x_disp))
 	}
-	
 	if phi_deg != 90 {
 		d += (r - r*math.Cos(theta)) / math.Tan(phi)
+	}
+
+	if d > D {
+		return D
 	}
 	return d
 }

@@ -25,6 +25,9 @@ function Update(mesh) {
 	    var phi = phi_deg / 180 * Math.PI;
 	    d += (r - r*Math.cos(theta)) / Math.tan(phi)
 	}
+
+	if (d > 4) d = 4;
+	
 	var x = r*Math.sin(theta)
 	var y = r*Math.cos(theta)
 	var z = u * d
