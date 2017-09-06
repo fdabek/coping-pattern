@@ -43,9 +43,10 @@
     font-family: "Courier", Monospace, Sans-serif;
   }
 </style>
+<script src="js/three.min.js"></script>
+<script src="js/preview.js"></script>
 
-<body onload='edit()'>
- 
+<body onload='Setup()'>
 <div class="left">
 <form action="/png?f=pdf" id="form">
   <p><label for="r">Cut tube diameter:</label><br>
@@ -62,31 +63,10 @@
 
 <input type="hidden" id="f" name="f" value="pdf">
 
-<input type="button" value="Preview" onclick='edit()'>
+<input type="button" value="Preview" id="preview">
 <input type="button" value="PDF" onclick='document.getElementById("form").submit();'>
 </form>
 </div>
 
-<img src="" id="pattern">
-
-
-<script>
-  function edit() {
-  url = "/png?f=png"
-  
-  R = document.getElementById('R').value;
-  url = url.concat("&R=").concat(R)
-  
-  r = document.getElementById('r').value;
-  url = url.concat("&r=").concat(r)
-  
-  phi = document.getElementById('phi').value;
-  url = url.concat("&phi=").concat(phi)
-
-  thick = document.getElementById('t').value;
-  url = url.concat("&t=").concat(thick)
-  
-  document.getElementById("pattern").src=url;
-}
-</script>
+    <img src="" id="pattern">
 </body>
