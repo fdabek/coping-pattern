@@ -10,14 +10,26 @@ import (
 	"image/png"
 	"io"
 	"math"
-	"net/http"
 	_ "net/http/pprof"
 	"strconv"
+	"log"
+	"net/http"
+	"os"
 )
 
-func init() {
+func main() {
 	http.HandleFunc("/png", handler)
 	http.Handle("/", http.FileServer(http.Dir("./static")))
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	err := http.ListenAndServe(":"+port, nil);
+	if err != nil {
+	   log.Fatal(err)
+	}
 }
 
 type pt struct {
