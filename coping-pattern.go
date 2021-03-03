@@ -34,41 +34,74 @@ func main() {
 
 type pt struct {
 	w    float64
-	d    float64
-	d_in float64
+	cut_d    float64
+	cut_d_in float64
+	angle_d float64
 }
 
-func computeD(r float64, R float64, D float64, phi_deg int, theta float64) float64 {
-	phi := float64(phi_deg) / 360.0 * 2*math.Pi
+// r: cut tube radius
+// R: other tube radius
+// theta: angle around cut tube "clockwise" (radians)
+func computeCutDelta(r float64, R float64, theta float64) float64 {
+	// first we're going to consider how much to displace the cut edge of
+	// the pattern from "D" due to the "cutting action" of the other
+	// tube. We are walking around the cut tube (with theta) and computing
+	// the displacement from the center of the cuting tube. Imagine a
+	// triangle with the base of length x_disp at the cuttin tube,
+	// hypotenuse of length R. The displacment is just the other leg:
 	x_disp := (r*math.Sin(theta))
-	d := D
 	if math.Abs(x_disp) < R {
-		d -= (math.Sqrt(R*R - x_disp*x_disp))
-	}
-	if phi_deg != 90 {
-		d += (r - r*math.Cos(theta)) / math.Tan(phi)
+		 return (math.Sqrt(R*R - x_disp*x_disp))
+	} else {
+		return 0
 	}
 
-	if d > D {
-		return D
-	}
-	return d
 }
 
-func computeIntersection(r float64, t float64, R float64, D float64, phi_deg int) (pts []pt) {	
-	for w := float64(0.0); w < r*2*math.Pi; w += 0.025 {
-		theta := float64(w/r);
-		d_out := computeD(r, R, D, phi_deg, theta);
-		d_in := computeD(r - t, R, D, phi_deg, theta);
-		pts = append(pts, pt{w, d_out, d_in})
+// phi_deg: angle between tubes (degress)
+// r: cut tube radius
+// theta: angle around cut tube "clockwise" (radians)
+func computeAngleDelta(phi_deg int, r float64, theta float64) float64 {
+	// if tubes are perpendicular, no adjustment
+	if phi_deg == 90 { return 0 }
+
+	// convert to radians here so we don't need to match aginst pi/2
+	phi := float64(phi_deg) / 360.0 * 2*math.Pi
+
+	// return displacment due to the angle between the tubes (if it's not
+	// 90). This is the distance a plane tilted at phi_deg degrees cuts
+	// into the cut tube at a given position (theta) along the pattern.
+	//
+	// Computed as the leg of a triange with hypotenuse of r and the other
+	// leg as the "y distance" above (or below) the center of the cut tube.
+	return (r*math.Cos(theta)) / math.Tan(phi)
+}
+
+func computeIntersection(r float64, t float64, R float64, phi_deg int) (pts []pt) {
+	// for every point in the linear space of the pattern (w) compute the
+	// corresponding angle (theta) and the displacment at that angle.
+	for w := float64(0.0); w < r*2*math.Pi; w += 0.005 {
+		theta := float64(w/r)
+		cut_d_out := computeCutDelta(r, R, theta)
+		cut_d_in := computeCutDelta(r - t, R, theta)
+		angle_d := computeAngleDelta(phi_deg, r, theta)
+		pts = append(pts, pt{w, cut_d_out, cut_d_in, angle_d})
 	}
 	return pts
 }
 
 func dumpText(writer http.ResponseWriter, pts []pt) {
 	for _, p := range pts {
-		io.WriteString(writer, fmt.Sprintf("%f %f\n", p.w, p.d));
+		io.WriteString(writer, fmt.Sprintf("%f %f\n", p.w, p.cut_d + p.angle_d));
 	}
+}
+
+func LeftEdge(p pt, D float64, offset float64) float64 {
+	return offset - p.angle_d
+}
+
+func RightEdge(p pt, D float64, offset float64) float64 {
+	return D + offset - p.angle_d - p.cut_d
 }
 
 func DrawPattern(gc draw2d.GraphicContext,
@@ -85,39 +118,45 @@ func DrawPattern(gc draw2d.GraphicContext,
 	gc.SetStrokeColor(color.Gray{0x00})
 	gc.SetLineWidth(0.02)
 
-	// inside profile:
+	// offset the pattern to make room for the edge curve:
+	offset := D/4
+
+	/*
+	// inside profile. The profile is displaced by the angle of the tube
+	// and the cutting action of the other tube and the widge of the pattern (D)
 	gc.SetStrokeColor(color.Gray{0xaa})
-	gc.MoveTo(pts[0].d_in, pts[0].w)
+	gc.MoveTo(offset + D - pts[0].cut_d_in - pts[0].angle_d, pts[0].w)
 	for _,p := range pts {
-		gc.LineTo(p.d_in, p.w)
+		gc.LineTo(offset + D - p.cut_d_in - p.angle_d, p.w)
 	}
 	gc.Stroke()
-
+	*/
+	
 	// outside profile:
 	gc.SetStrokeColor(color.Gray{0x00})
-	gc.MoveTo(pts[0].d, pts[0].w)
+	gc.MoveTo(RightEdge(pts[0], D, offset), pts[0].w)
 	for _,p := range pts {
-		gc.LineTo(p.d, p.w)
+		gc.LineTo(RightEdge(p,  D, offset), p.w)
 	}
 	gc.Stroke()
 
+	// now the left edge. This curve is displaced only by the angle between the tubes:
+	gc.MoveTo(LeftEdge(pts[0], D, offset), pts[0].w)
+	for _,p := range pts {
+		gc.LineTo(LeftEdge(p, D, offset), p.w)
+	}
+	gc.Stroke()
 
 	// quarter rotation lines:
-	for i := float64(0.0); i <= 4; i++ {
-		theta := float64(math.Pi*i/2.0)
-		quarter_d := computeD(r, R, D, int(phi_deg), theta)
-		quarter_w := theta*r
-		gc.MoveTo(0, quarter_w)
-		gc.LineTo(quarter_d, quarter_w)
+	indices := []int{0, len(pts) / 4, len(pts) / 2, 3 * len(pts) / 4, len(pts) - 1}
+	for _, index := range indices {
+		gc.MoveTo(LeftEdge(pts[index], D, offset), pts[index].w)
+		gc.LineTo(RightEdge(pts[index], D, offset),  pts[index].w)
 	}
-
-	// left reference edge
-	gc.MoveTo(0,0)
-	gc.LineTo(0, math.Pi*2*r)
-
+	
 	
 	// and the alignment notches every inch
-	for i := float64(0.0); i <= pts[0].d_in; i++ {
+	for i := offset; i <= offset + D - pts[0].cut_d - pts[0].angle_d; i++ {
 		// top:
 		gc.MoveTo(i, 0)
 		gc.LineTo(i, 0.125)
@@ -194,7 +233,7 @@ func handler(writer http.ResponseWriter, req *http.Request) {
 	r = r/2;
 	
 	D := math.Trunc(R + 4)
-	pts := computeIntersection(r, thick, R, D, int(phi_deg))
+	pts := computeIntersection(r, thick, R, int(phi_deg))
 
 	if format == "text" {
 		writer.Header().Set("Content-type", "text/plain")
